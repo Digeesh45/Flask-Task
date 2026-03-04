@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h3 class="mb-3">Allocate Resources for "{{ event.title }}"</h3>
+<p><strong>Time:</strong> {{ event.start_time }} → {{ event.end_time }}</p>
+<p><strong>Expected Attendance:</strong> {{ event.expected_attendance or '-' }}</p>
+
+<form method="post" class="row g-3 mb-4">
+  <div class="col-md-6">
+    <label class="form-label">Resource</label>
+    <select name="resource_id" class="form-select" required>
+      {% for resource in resources %}
+      <option value="{{ resource.id }}">{{ resource.name }} ({{ resource.type }})</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Reserved Quantity</label>
+    <input type="number" name="reserved_quantity" class="form-control" value="1">
+  </div>
+  <div class="col-md-3 d-flex align-items-end">
+    <button type="submit" class="btn btn-primary w-100">Allocate</button>
+  </div>
+</form>
+
+<h5>Existing Allocations</h5>
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th>Resource</th>
+      <th>Type</th>
+      <th>Reserved Qty</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for alloc in allocations %}
+    <tr>
+      <td>{{ alloc.resource.name }}</td>
+      <td>{{ alloc.resource.type }}</td>
+      <td>{{ alloc.reserved_quantity }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3">No allocations yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+

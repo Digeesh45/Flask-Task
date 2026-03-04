@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h3 class="mb-3">{{ 'Edit Resource' if resource else 'Create Resource' }}</h3>
+<form method="post">
+  <div class="mb-3">
+    <label class="form-label">Name</label>
+    <input type="text" name="name" class="form-control" required value="{{ resource.name if resource else '' }}">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Type</label>
+    <select name="type" class="form-select" required>
+      {% set current_type = resource.type if resource else '' %}
+      <option value="room" {{ 'selected' if current_type == 'room' else '' }}>Room</option>
+      <option value="instructor" {{ 'selected' if current_type == 'instructor' else '' }}>Instructor</option>
+      <option value="equipment" {{ 'selected' if current_type == 'equipment' else '' }}>Equipment</option>
+    </select>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Capacity / Quantity</label>
+    <input type="number" name="capacity" class="form-control" value="{{ resource.capacity if resource else 0 }}">
+  </div>
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="{{ url_for('list_resources') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}
+

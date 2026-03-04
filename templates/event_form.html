@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h3 class="mb-3">{{ 'Edit Event' if event else 'Create Event' }}</h3>
+<form method="post">
+  <div class="mb-3">
+    <label class="form-label">Title</label>
+    <input type="text" name="title" class="form-control" required value="{{ event.title if event else '' }}">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Description</label>
+    <textarea name="description" class="form-control" rows="3">{{ event.description if event else '' }}</textarea>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Start Time (ISO, e.g. 2026-03-04T10:00)</label>
+      <input type="text" name="start_time" class="form-control" required value="{{ event.start_time.isoformat(timespec='minutes') if event else '' }}">
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label">End Time</label>
+      <input type="text" name="end_time" class="form-control" required value="{{ event.end_time.isoformat(timespec='minutes') if event else '' }}">
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Timezone</label>
+      <input type="text" name="timezone" class="form-control" value="{{ event.timezone if event else 'UTC' }}">
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Expected Attendance</label>
+      <input type="number" name="expected_attendance" class="form-control" value="{{ event.expected_attendance if event and event.expected_attendance is not none else '' }}">
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="{{ url_for('list_events') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}
+

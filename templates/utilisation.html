@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<h3 class="mb-3">Resource Utilisation Report</h3>
+<form method="get" class="row g-3 mb-4">
+  <div class="col-md-5">
+    <label class="form-label">From</label>
+    <input type="datetime-local" name="from" class="form-control" value="{{ start_value or '' }}">
+  </div>
+  <div class="col-md-5">
+    <label class="form-label">To</label>
+    <input type="datetime-local" name="to" class="form-control" value="{{ end_value or '' }}">
+  </div>
+  <div class="col-md-2 d-flex align-items-end">
+    <button type="submit" class="btn btn-primary w-100">Generate</button>
+  </div>
+</form>
+<p class="text-muted small mb-0">Use the picker above, or type e.g. 04-03-2026 09:00 or 2026-03-04T09:00.</p>
+
+{% if utilisation %}
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Resource</th>
+      <th>Total Hours</th>
+      <th>Upcoming Bookings</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in utilisation %}
+    <tr>
+      <td>{{ row.resource_name }}</td>
+      <td>{{ row.total_hours }}</td>
+      <td>
+        {% for b in row.upcoming %}
+          <div><strong>{{ b.event_title }}</strong>: {{ b.start_time }} → {{ b.end_time }}</div>
+        {% else %}
+          <span class="text-muted">None</span>
+        {% endfor %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}
+
