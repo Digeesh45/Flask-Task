@@ -60,7 +60,11 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         if User.query.first() is None:
             admin = User(username="admin", role=Role.ADMIN)
             admin.set_password("admin")
-            db.session.add(admin)
+            organiser = User(username="organiser", role=Role.ORGANISER)
+            organiser.set_password("organiser")
+            viewer = User(username="viewer", role=Role.VIEWER)
+            viewer.set_password("viewer")
+            db.session.add_all([admin, organiser, viewer])
             db.session.commit()
 
     register_routes(app)
