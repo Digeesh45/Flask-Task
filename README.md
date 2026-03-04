@@ -54,12 +54,5 @@ From the `src` directory:
 pytest
 ```
 
-## Screenshots & Demo
 
-- Add screenshots of:
-  - Event list
-  - Resource list
-  - Allocation with conflicts
-  - Utilisation report
-- Demo video: record a short walkthrough (e.g., Loom) and paste the link here before submitting.
 
