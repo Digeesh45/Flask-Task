@@ -60,7 +60,7 @@ class Event(db.Model):
 class Resource(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False, unique=True, index=True)
-    type = db.Column(db.String(32), nullable=False)  # room / instructor / equipment
+    type = db.Column(db.String(32), nullable=False)
     capacity = db.Column(db.Integer, nullable=False, default=0)
 
     allocations = db.relationship(
@@ -99,8 +99,6 @@ class EventResourceAllocation(db.Model):
         }
 
     def to_conflict_dict(self, resource: "Resource") -> dict:
-        # Here we simply describe the allocation's event window; the caller
-        # can use this alongside the new/target event for UI.
         overlap_start = self.event.start_time
         overlap_end = self.event.end_time
         return {

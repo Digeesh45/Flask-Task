@@ -23,7 +23,7 @@ Flask hiring assignment implementation for Aerele Technologies.
 
 ## Setup
 
-From the `src` directory:
+From the project root directory (`C:\Users\digee\Documents\flask task`):
 
 ```bash
 python -m venv .venv
@@ -31,12 +31,8 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Initialize the database (SQLite by default):
-
-```bash
-set FLASK_APP=app:create_app
-flask shell -c "from app import create_app; from extensions import db; from models import User, Role; app = create_app(); app.app_context().push(); db.create_all(); admin = User(username='admin', role=Role.ADMIN); admin.set_password('admin'); db.session.add(admin); db.session.commit()"
-```
+The app will automatically create the SQLite database and a default
+`admin` user (password `admin`) on the first run.
 
 Run the app:
 
@@ -48,11 +44,61 @@ Then open `http://localhost:5000` and log in with `admin / admin`.
 
 ## Running Tests
 
-From the `src` directory:
+From the project root directory:
 
 ```bash
 pytest
 ```
+
+## Assignment Mapping
+
+This project implements the requirements from the Aerele Technologies
+Flask hiring assignment:
+
+- Core entities and DB design:
+  - `Event`, `Resource`, `EventResourceAllocation` with proper relations,
+    constraints, and indexes.
+- Event management:
+  - Create / edit / view events, with validation that
+    `start_time` is before `end_time`.
+- Resource management:
+  - Create / edit / view shared resources (rooms, instructors, equipment).
+- Resource allocation and conflict engine:
+  - Detects partial, full, nested, and boundary overlaps.
+  - Prevents:
+    - Room double booking.
+    - Instructor double booking.
+    - Equipment quantity over available quantity.
+    - Room capacity vs expected attendance.
+    - Instructor daily working-hours over 8 hours/day.
+- Resource utilisation report:
+  - User selects a date range; report shows resource name, total hours
+    utilised, and upcoming bookings.
+- Authentication and roles:
+  - `admin`: full access.
+  - `organiser`: can create/edit events and resources, and allocate.
+  - `viewer`: read-only access.
+- REST API:
+  - `GET /api/events?from=&to=`
+  - `POST /api/events`
+  - `POST /api/events/{id}/allocate`
+  - `GET /api/conflicts?event_id=`
+- Conflict UX:
+  - Dedicated conflict page listing the conflicting resource, overlapping
+    events, and their time windows.
+- Tests:
+  - 7+ unit tests for overlap and allocation logic in `tests/test_overlap.py`.
+- Bonus:
+  - Export utilisation reports to CSV via `/reports/utilisation.csv`.
+
+Before submitting, add:
+
+- Screenshots of:
+  - Event list / create / edit.
+  - Resource list / create / edit.
+  - Allocation screen with a conflict.
+  - Utilisation report.
+- A short demo video link (Loom/YouTube) here.
 
 
 

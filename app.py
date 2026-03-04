@@ -1,20 +1,33 @@
 from datetime import datetime
+from functools import wraps
 
-from flask import Flask, jsonify, redirect, render_template, request, url_for, flash
+from flask import (
+    Flask,
+    Response,
+    abort,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
+from flask_login import login_required, login_user, logout_user, current_user
+
+from config import Config
+from extensions import db, migrate, login_manager
+from models import Role
 
 
 def _parse_datetime(s: str) -> datetime | None:
-    """Parse date/time string; accept ISO and dd-mm-yyyy / dd/mm/yyyy with time."""
     if not s or not s.strip():
         return None
     s = s.strip().replace("Z", "+00:00")
-    # ISO-style (yyyy-mm-dd or yyyy-mm-ddTHH:MM or with seconds)
     if s[0:1].isdigit() and "-" in s[:10] and s[4:5] == "-":
         try:
             return datetime.fromisoformat(s)
         except ValueError:
             pass
-    # dd-mm-yyyy or dd/mm/yyyy, optional time (HH:MM or THH:MM)
     for sep in ("-", "/"):
         parts = s.replace("T", " ").split()
         if len(parts) >= 1 and sep in parts[0]:
@@ -30,15 +43,6 @@ def _parse_datetime(s: str) -> datetime | None:
             except (ValueError, IndexError):
                 continue
     return None
-from flask_login import (
-    login_user,
-    logout_user,
-    current_user,
-    login_required,
-)
-
-from config import Config
-from extensions import db, migrate, login_manager
 
 
 def create_app(config_class: type[Config] = Config) -> Flask:
@@ -49,7 +53,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     migrate.init_app(app, db)
     login_manager.init_app(app)
 
-    from models import User, Event, Resource, EventResourceAllocation, Role  # noqa: F401
+    from models import User, Event, Resource, EventResourceAllocation, Role
 
     with app.app_context():
         db.create_all()
@@ -70,8 +74,21 @@ def load_user(user_id: str):
     return User.query.get(int(user_id))
 
 
+def require_roles(*roles: str):
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapped(*args, **kwargs):
+            if not current_user.is_authenticated or current_user.role not in roles:
+                abort(403)
+            return view_func(*args, **kwargs)
+
+        return wrapped
+
+    return decorator
+
+
 def register_routes(app: Flask) -> None:
-    from models import Event, Resource, EventResourceAllocation
+    from models import Event, Resource, EventResourceAllocation, Role
     from services import (
         allocate_resource_to_event,
         get_conflicts_for_event,
@@ -85,7 +102,6 @@ def register_routes(app: Flask) -> None:
         resources = Resource.query.order_by(Resource.name).all()
         return render_template("index.html", events=events, resources=resources)
 
-    # Authentication
     @app.route("/login", methods=["GET", "POST"])
     def login():
         from models import User
@@ -106,7 +122,6 @@ def register_routes(app: Flask) -> None:
         logout_user()
         return redirect(url_for("login"))
 
-    # Event management
     @app.route("/events")
     @login_required
     def list_events():
@@ -115,6 +130,7 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/events/new", methods=["GET", "POST"])
     @login_required
+    @require_roles(Role.ADMIN, Role.ORGANISER)
     def create_event():
         if request.method == "POST":
             title = request.form.get("title")
@@ -149,6 +165,7 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/events/<int:event_id>/edit", methods=["GET", "POST"])
     @login_required
+    @require_roles(Role.ADMIN, Role.ORGANISER)
     def edit_event(event_id: int):
         event = Event.query.get_or_404(event_id)
         if request.method == "POST":
@@ -171,7 +188,6 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("list_events"))
         return render_template("event_form.html", event=event)
 
-    # Resource management
     @app.route("/resources")
     @login_required
     def list_resources():
@@ -180,6 +196,7 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/resources/new", methods=["GET", "POST"])
     @login_required
+    @require_roles(Role.ADMIN, Role.ORGANISER)
     def create_resource():
         if request.method == "POST":
             name = request.form.get("name")
@@ -194,6 +211,7 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/resources/<int:resource_id>/edit", methods=["GET", "POST"])
     @login_required
+    @require_roles(Role.ADMIN, Role.ORGANISER)
     def edit_resource(resource_id: int):
         resource = Resource.query.get_or_404(resource_id)
         if request.method == "POST":
@@ -205,9 +223,9 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("list_resources"))
         return render_template("resource_form.html", resource=resource)
 
-    # Allocation
     @app.route("/events/<int:event_id>/allocate", methods=["GET", "POST"])
     @login_required
+    @require_roles(Role.ADMIN, Role.ORGANISER)
     def allocate(event_id: int):
         event = Event.query.get_or_404(event_id)
         resources = Resource.query.order_by(Resource.name).all()
@@ -237,7 +255,6 @@ def register_routes(app: Flask) -> None:
             "allocate.html", event=event, resources=resources, allocations=allocations
         )
 
-    # Reports
     @app.route("/reports/utilisation", methods=["GET"])
     @login_required
     def utilisation_report():
@@ -264,8 +281,43 @@ def register_routes(app: Flask) -> None:
             end_value=end_value,
         )
 
-    # REST API
+    @app.get("/reports/utilisation.csv")
+    @login_required
+    def utilisation_report_csv():
+        start_raw = request.args.get("from", "").strip()
+        end_raw = request.args.get("to", "").strip()
+        if not start_raw or not end_raw:
+            flash("Select From and To before exporting CSV", "warning")
+            return redirect(url_for("utilisation_report"))
+
+        start_dt = _parse_datetime(start_raw)
+        end_dt = _parse_datetime(end_raw)
+        if start_dt is None or end_dt is None or start_dt >= end_dt:
+            flash("Invalid date range for CSV export", "danger")
+            return redirect(url_for("utilisation_report"))
+
+        rows = get_resource_utilisation(start_dt, end_dt)
+
+        import csv
+        from io import StringIO
+
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["resource_id", "resource_name", "total_hours"])
+        for row in rows:
+            writer.writerow(
+                [row["resource_id"], row["resource_name"], row["total_hours"]]
+            )
+
+        csv_data = output.getvalue()
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=utilisation.csv"},
+        )
+
     @app.get("/api/events")
+    @login_required
     def api_get_events():
         start = request.args.get("from")
         end = request.args.get("to")
@@ -278,6 +330,8 @@ def register_routes(app: Flask) -> None:
         return jsonify([e.to_dict() for e in events])
 
     @app.post("/api/events")
+    @login_required
+    @require_roles(Role.ADMIN, Role.ORGANISER)
     def api_create_event():
         data = request.get_json() or {}
         required = ["title", "start_time", "end_time"]
@@ -302,6 +356,8 @@ def register_routes(app: Flask) -> None:
         return jsonify(event.to_dict()), 201
 
     @app.post("/api/events/<int:event_id>/allocate")
+    @login_required
+    @require_roles(Role.ADMIN, Role.ORGANISER)
     def api_allocate(event_id: int):
         data = request.get_json() or {}
         resource_id = data.get("resource_id")
@@ -329,6 +385,7 @@ def register_routes(app: Flask) -> None:
         return jsonify(allocation.to_dict()), 201
 
     @app.get("/api/conflicts")
+    @login_required
     def api_conflicts():
         event_id = request.args.get("event_id", type=int)
         if not event_id:
@@ -337,7 +394,7 @@ def register_routes(app: Flask) -> None:
         conflicts = get_conflicts_for_event(event)
         return jsonify(
             [
-                c.to_conflict_dict(c.resource)  # type: ignore[attr-defined]
+                c.to_conflict_dict(c.resource)
                 for c in conflicts
             ]
         )

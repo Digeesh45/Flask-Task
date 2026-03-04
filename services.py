@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from extensions import db
 from models import Event, Resource, EventResourceAllocation, events_overlap
@@ -9,7 +9,6 @@ from models import Event, Resource, EventResourceAllocation, events_overlap
 def allocate_resource_to_event(
     event: Event, resource: Resource, reserved_quantity: int
 ) -> tuple[bool, list[EventResourceAllocation] | EventResourceAllocation]:
-    """Try allocating a resource; return (ok, allocation or conflicts)."""
     conflicts: list[EventResourceAllocation] = []
     existing_allocs = EventResourceAllocation.query.filter_by(
         resource_id=resource.id
@@ -33,10 +32,20 @@ def allocate_resource_to_event(
             ):
                 conflicts.append(alloc)
 
-        # Room capacity vs attendance rule
         if resource.type == "room" and event.expected_attendance is not None:
             if event.expected_attendance > resource.capacity:
-                # Represent capacity violation as a pseudo-conflict (no overlapping event)
+                return False, []
+
+        if resource.type == "instructor":
+            max_hours_per_day = 8.0
+            event_day = event.start_time.date()
+            total_hours = (event.end_time - event.start_time).total_seconds() / 3600.0
+            for alloc in existing_allocs:
+                other_event = alloc.event
+                if other_event.start_time.date() == event_day:
+                    duration = (other_event.end_time - other_event.start_time).total_seconds() / 3600.0
+                    total_hours += duration
+            if total_hours > max_hours_per_day:
                 return False, []
 
     if conflicts:

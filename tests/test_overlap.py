@@ -155,3 +155,29 @@ def test_no_conflict_for_non_overlapping_events():
     assert ok1 and ok2
     teardown_app()
 
+
+def test_instructor_daily_hours_limit():
+    setup_app()
+    instructor = Resource(name="Ravi Long Day", type="instructor", capacity=1)
+    db.session.add(instructor)
+    e1 = Event(
+        title="Morning Block",
+        start_time=datetime(2026, 3, 4, 8, 0, 0),
+        end_time=datetime(2026, 3, 4, 13, 0, 0),
+        timezone="UTC",
+    )
+    e2 = Event(
+        title="Afternoon Block",
+        start_time=datetime(2026, 3, 4, 14, 0, 0),
+        end_time=datetime(2026, 3, 4, 18, 0, 0),
+        timezone="UTC",
+    )
+    db.session.add_all([e1, e2])
+    db.session.commit()
+
+    ok1, _ = allocate_resource_to_event(e1, instructor, 1)
+    assert ok1
+    ok2, _ = allocate_resource_to_event(e2, instructor, 1)
+    assert not ok2
+    teardown_app()
+
