@@ -102,3 +102,25 @@ Before submitting, add:
 
 
 
+## How to Run the Project
+
+1. Clone the repository
+git clone https://github.com/Digeesh45/Flask-Task.git
+
+2. Navigate to project
+cd Flask-Task
+
+3. Create virtual environment
+python -m venv .venv
+
+4. Activate environment
+.venv\Scripts\activate
+
+5. Install dependencies
+pip install -r requirements.txt
+
+6. Run the application
+python app.py
+
+7. Open in browser
+http://127.0.0.1:5000
